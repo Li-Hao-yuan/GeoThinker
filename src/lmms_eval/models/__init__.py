@@ -44,7 +44,9 @@ AVAILABLE_MODELS = {
     "xcomposer2d5": "XComposer2D5",
     "qwen2vl": "Qwen2VL",
     "qwen2_5_vl": "Qwen2_5_VL",
+    
     "vgllm": "VGLLM",
+    "geothinker": "GeoThinker",
 }
 
 

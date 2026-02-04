@@ -1090,13 +1090,12 @@ class Qwen3VLModel(Qwen3VLPreTrainedModel):
                 features, camera_token = self.geometry_encoder.encode(geometry_encoder_inputs[bn])
                 
                 features = features.to(image_embeds.dtype)
-                camera_token = camera_token.to(image_embeds.dtype)
 
                 # [n_image, h_patch_size, w_patch_size, feature_dim]
                 features = features.reshape(n_image, height // self.geometry_encoder.patch_size, width // self.geometry_encoder.patch_size, -1)
                 
                 # Reshape for merger
-                features, camera_token = self.geometry_merger(features, camera_token)
+                features = self.geometry_merger(features)
 
                 geo_embeds.append(features)
 
@@ -1148,7 +1147,7 @@ class Qwen3VLModel(Qwen3VLPreTrainedModel):
             else:
                 pass
 
-            image_embeds, features_3d = self.feature_fusion(image_embeds, geo_embeds, inputs_embeds)
+            image_embeds, features_3d = self.feature_fusion(image_embeds, geo_embeds)
             image_embeds = image_embeds.view(-1, image_embeds.shape[-1])
             
         return image_embeds, features_3d, deepstack_image_embeds
