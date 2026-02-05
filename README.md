@@ -14,7 +14,7 @@
 &nbsp
 
 <div align="center" margin-bottom="3em">
-Haoyuan Li<sup>*</sup>, Qihang Cao<sup>*</sup>, Tao Tang, Kun Xiang, Zihan Guo, Jianhua Han, JiaWang Bian, Hang Xu, Xiaodan Liang<sup>&ddagger;</sup>
+Haoyuan Li<sup>*</sup>, Qihang Cao<sup>*</sup>, Tao Tang, Kun Xiang, Zihan Guo, Jianhua Han, Hang Xu, Xiaodan Liang<sup>&ddagger;</sup>
 
 <sup>*</sup>Equal contribution.
 <sup>&ddagger;</sup> Corresponding author.
