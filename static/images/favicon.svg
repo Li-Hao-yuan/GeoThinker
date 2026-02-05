@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Geometric Thinking Favicon">
+  <!-- Background (transparent by default) -->
+
+  <!-- Outer hexagon -->
+  <path d="M32 4 L54 16.5 L54 47.5 L32 60 L10 47.5 L10 16.5 Z"
+        fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Coordinate axes -->
+  <path d="M18 44 L32 32 L46 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 20 L32 32 L44 44" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- Arrow hints on a main reasoning direction -->
+  <path d="M46 20 L41.5 20.8 L43.8 23.8 Z" fill="currentColor"/>
+  <path d="M32 32 L28.8 34.3 L31.8 35.5 Z" fill="currentColor" opacity="0.85"/>
+
+  <!-- Nodes (thought points) -->
+  <circle cx="20" cy="44" r="3.2" fill="currentColor"/>
+  <circle cx="32" cy="32" r="3.2" fill="currentColor"/>
+  <circle cx="46" cy="20" r="3.2" fill="currentColor"/>
+
+  <!-- Secondary nodes -->
+  <circle cx="20" cy="20" r="2.6" fill="currentColor" opacity="0.9"/>
+  <circle cx="44" cy="44" r="2.6" fill="currentColor" opacity="0.9"/>
+
+  <!-- Subtle inner geometry (triangle / structure) -->
+  <path d="M20 44 L46 20 L44 44 Z"
+        fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.55" stroke-linejoin="round"/>
+
+  <!-- Optional: small grid dots (very subtle) -->
+  <g fill="currentColor" opacity="0.18">
+    <circle cx="26" cy="26" r="0.9"/><circle cx="38" cy="26" r="0.9"/>
+    <circle cx="26" cy="38" r="0.9"/><circle cx="38" cy="38" r="0.9"/>
+  </g>
+</svg>
