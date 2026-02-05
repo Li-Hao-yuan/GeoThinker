@@ -1,14 +1,12 @@
 # Thinking with Geometry: Active Geometry Integration for Spatial Reasoning
 
 <div align="center" margin-bottom="3em">
-<a href="https://arxiv.org/abs/2505.24625" target="_blank">
+<a href="" target="_blank">
 <img src="https://img.shields.io/badge/arXiv-GeoThinker-green" alt="arXiv"></a>
-<a href="assets/VG_LLM_Neurips_2025.pdf" target="_blank">
-<img src="https://img.shields.io/badge/Paper-GeoThinker-orange" alt="Paper"></a>
-<a href="https://lavi-lab.github.io/VG-LLM/" target="_blank">
+<a href="" target="_blank">
     <img alt="Website" src="https://img.shields.io/badge/Website-GeoThinker-blue.svg" height="20" />
 </a>
-<a href="https://huggingface.co/datasets/zd11024/VG-LLM-Data" target="_blank">
+<a href="https://huggingface.co/lihy285/GeoThinker" target="_blank">
     <img alt="Model" src="https://img.shields.io/badge/Model-GeoThinker-yellow.svg" height="20" />
 </a>
 
@@ -33,6 +31,7 @@ Instead of feature mixing, GeoThinker enables the model to selectively retrieve 
 </p>
 
 ## 📢News
+* [2026-02-04] We release our model weight.
 * [2026-02-02] We release our code.
 
 
@@ -120,6 +119,10 @@ We recommend adopting the 7B model as the backbone, as our experiments show it d
 
 ### 1. Structure
 Before starting the training process, you need to download the required datasets and annotations according to the following folder structure.
+
+<details>
+<summary>data structure.</summary>
+
 ```
 data
 |-- datasets
@@ -182,6 +185,7 @@ data
     |-- vsi_590k_16frame_obs.json
     `-- vsi_590k_32frame_obs.json
 ```
+</details>
 
 ### 2. Data for Vanilla Regime
   * **Annotations:** Download the annotation files from [VG-LLM-Data](https://huggingface.co/datasets/zd11024/VG-LLM-Data).
@@ -277,6 +281,14 @@ bash scripts/train/train_sr_qwen3vl.sh
   * **Training Duration:**
       * Vanilla Regime: Approximately 9 hours for 8B model.
       * Scaled Regime: Approximately a week for 8B model.
+
+#### Training Notes & Precautions
+  * **Transformer version**: There is a version mismatch between the requirements for Qwen3-VL and Qwen2.5-VL backbones:
+      * Qwen3-VL: Training the Qwen3-VL backbone requires a more recent version of the transformers. We recommend using transformers==4.57.0.
+      * Qwen2.5-VL: This backbone is incompatible with the version required for Qwen3-VL. For training Qwen2.5-VL, please use transformers==4.50.0.
+      * Evaluation: For the sake of consistency during inference and benchmarking, transformers==4.57.0 can be used for both models.
+  * **Video Data Processing**: In our implementation, we observed that directly loading and decoding video files during training can lead to inefficient memory management and potential overhead. To optimize throughput and stability, we recommend pre-sampling videos into images uniformly prior to training.
+  * **Flash Attention in SGF**: We have integrated a Flash Attention implementation for the Spatial-Grounded Fusion (SGF) module. Please note that while Flash Attention accelerates training, we have observed a performance discrepancy between the Flash Attention implementation and the default attention mechanism in certain scenarios.
 
 <!-- The training scripts will be released soon. -->
 ## Evaluation
