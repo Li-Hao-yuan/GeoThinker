@@ -1,9 +1,9 @@
 # Thinking with Geometry: Active Geometry Integration for Spatial Reasoning
 
 <div align="center" margin-bottom="3em">
-<a href="" target="_blank">
+<a href="https://arxiv.org/abs/2602.06037" target="_blank">
 <img src="https://img.shields.io/badge/arXiv-GeoThinker-green" alt="arXiv"></a>
-<a href="" target="_blank">
+<a href="https://li-hao-yuan.github.io/GeoThinker/" target="_blank">
     <img alt="Website" src="https://img.shields.io/badge/Website-GeoThinker-blue.svg" height="20" />
 </a>
 <a href="https://huggingface.co/lihy285/GeoThinker" target="_blank">
