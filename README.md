@@ -111,8 +111,8 @@ We recommend adopting the 7B model as the backbone, as our experiments show it d
 
 | | Model Access |
 |---|---|
-| Vanilla Regime | [🤗GeoThinker-Qwen2.5VL-3B](https://huggingface.co/lihy285/GeoThinker/tree/main/QeoThinker-VGGT-Qwen25VL-4B-Vanilla)<br>[🤗GeoThinker-Qwen2.5VL-7B](https://huggingface.co/lihy285/GeoThinker/tree/main/QeoThinker-VGGT-Qwen25VL-7B-Vanilla) |
-| Spatial Reasoning | [🤗GeoThinker-Qwen2.5VL-7B](https://huggingface.co/lihy285/GeoThinker/tree/main/QeoThinker-VGGT-Qwen25VL-7B-Scaled)<br>[🤗GeoThinker-Qwen3VL-8B](https://huggingface.co/lihy285/GeoThinker/tree/main/QeoThinker-VGGT-Qwen3VL-8B-Scaled) |
+| Vanilla Regime | [🤗GeoThinker-Qwen2.5VL-3B](https://huggingface.co/lihy285/GeoThinker/tree/main/GeoThinker-VGGT-Vanilla-Qwen25VL-3B)<br>[🤗GeoThinker-Qwen2.5VL-7B](https://huggingface.co/lihy285/GeoThinker/tree/main/GeoThinker-VGGT-Vanilla-Qwen25VL-7B) |
+| Spatial Reasoning | [🤗GeoThinker-Qwen2.5VL-7B](https://huggingface.co/lihy285/GeoThinker/tree/main/GeoThinker-VGGT-Scaled-Qwen25VL-7B)<br>[🤗GeoThinker-Qwen3VL-8B](https://huggingface.co/lihy285/GeoThinker/tree/main/GeoThinker-VGGT-Scaled-Qwen3VL-8B) |
 
 
 ## Data Preparation
