@@ -74,7 +74,7 @@ GeoThinker represents a paradigm shift in how Multimodal Large Language Models (
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/Li-Hao-yuan/GeoThinker](https://github.com/Li-Hao-yuan/GeoThinker)
+    git clone https://github.com/Li-Hao-yuan/GeoThinker
     cd GeoThinker
     ```
 
