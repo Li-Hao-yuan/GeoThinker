@@ -35,6 +35,7 @@ def MME_doc_to_visual(doc):
     return [images]
 
 def MME_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
     
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
@@ -53,7 +54,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -63,6 +65,7 @@ WORST_CASE_FOR_METRICS = {
 }
 
 def MME_process_results(doc, results):
+    doc = dict(doc)
 
     if "image" in doc.keys(): doc.pop("image")
 

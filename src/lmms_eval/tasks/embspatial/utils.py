@@ -58,8 +58,6 @@ cache_dir = dataset_path
 #     cache_dir = os.path.join(base_cache_dir, cache_name)
 
 def embspatial_doc_to_visual(doc):
-    # import pdb
-    # pdb.set_trace()
 
     images = [
         Image.open(io.BytesIO(base64.b64decode(doc['image']))).convert("RGB")
@@ -68,12 +66,11 @@ def embspatial_doc_to_visual(doc):
 
 
 def embspatial_doc_to_text(doc, lmms_eval_specific_kwargs=None):
-    # import pdb
-    # pdb.set_trace()
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
 
     question = doc["question"]
 
-    options = doc["answer_options"]
+    options = list(doc["answer_options"])
     for i in range(len(options)):
         options[i] = chr(65+i)+"."+" "+options[i]
     options = "Options:\n" + "\n".join(options)
@@ -83,10 +80,12 @@ def embspatial_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 def embspatial_process_results(doc, results):
+    doc = dict(doc)
     doc["prediction"] = results[0]
     for key, value in METRICS_FOR_MCA.items():
         # pred = fuzzy_matching(doc["prediction"])

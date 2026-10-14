@@ -46,23 +46,20 @@ with open(Path(__file__).parent / "vsisuper.yaml", "r") as f:
 dataset_path = yaml.safe_load("".join(safe_data))["dataset_path"]
 
 
-if os.path.isdir(dataset_path):
-    cache_dir = dataset_path
-else:
-    cache_name = yaml.safe_load("".join(safe_data))["dataset_kwargs"]["cache_dir"]
-    cache_dir = os.path.join(base_cache_dir, cache_name)
+cache_dir = dataset_path
 
 def vsisuper_doc_to_visual(doc):
-    root = "/cache/c30080772/VSI-Super"
+    root = os.getenv("VSI_SUPER_VIDEO_DIR", "data/media/VSI-Super")
     video_path = os.path.join(root, doc['video_path'])
     if os.path.exists(video_path):
         video_path = video_path
     else:
-        raise FileExistsError(f"video path:{video_path} does not exist.")
+        raise FileNotFoundError(f"video path:{video_path} does not exist.")
     return [video_path]
 
 
 def vsisuper_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
     options = "Options:\n" + "\n".join(doc["options"])
     post_prompt = lmms_eval_specific_kwargs.get("mca_post_prompt", "") or "Answer with the option's letter from the given choices directly."
@@ -79,7 +76,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -116,6 +114,7 @@ def to_float(pred):
     return pred
 
 def vsisuper_process_results(doc, results):
+    doc = dict(doc)
     
     doc['prediction'] = results[0]
     for key, value in METRICS_FOR_MCA.items():

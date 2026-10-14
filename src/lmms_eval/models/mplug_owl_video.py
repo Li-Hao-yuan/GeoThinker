@@ -56,7 +56,6 @@ class mplug_Owl(lmms):
             self._device = torch.device(f"cuda:{accelerator.local_process_index}")
             self.device_map = f"cuda:{accelerator.local_process_index}"
 
-        # import pdb; pdb.set_trace()
         # This is very slow. Their issue, not mine
         # Also, keep transformers in version 4.28.1
         # They put a Config object inside a config object, this is not acceptable

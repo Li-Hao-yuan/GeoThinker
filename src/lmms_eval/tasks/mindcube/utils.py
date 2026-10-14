@@ -56,10 +56,8 @@ cache_dir = dataset_path
 #     cache_dir = os.path.join(base_cache_dir, cache_name)
 
 def mindcube_doc_to_visual(doc):
-    # import pdb
-    # pdb.set_trace()
 
-    image_files = doc["images"]
+    image_files = list(doc["images"])
     for i, image_file in enumerate(image_files):
         image_files[i] = os.path.join(cache_dir, image_file).replace("evaluation", "media")
     images = [
@@ -69,8 +67,6 @@ def mindcube_doc_to_visual(doc):
 
 
 def mindcube_doc_to_text(doc, lmms_eval_specific_kwargs=None):
-    # import pdb
-    # pdb.set_trace()
 
     pre_prompt = "These are frames of a video." 
     question = doc["question"]
@@ -79,10 +75,12 @@ def mindcube_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 def mindcube_process_results(doc, results):
+    doc = dict(doc)
     doc["prediction"] = results[0]
     for key, value in METRICS_FOR_MCA.items():
         # pred = fuzzy_matching(doc["prediction"])

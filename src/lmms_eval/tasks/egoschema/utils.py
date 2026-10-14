@@ -82,6 +82,7 @@ def egoschema_doc_to_visual(doc):
 
 
 def egoschema_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
 
     question = doc["question"]
 
@@ -94,17 +95,27 @@ def egoschema_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 
+def egoschema_doc_to_target(doc):
+    answer = str(doc['answer']).strip().upper()
+    if answer in ('0', '1', '2', '3', '4'):
+        return chr(65 + int(answer))
+    if answer in ('A', 'B', 'C', 'D', 'E'):
+        return answer
+    raise ValueError(f"Unsupported EgoSchema answer: {answer!r}")
+
 def egoschema_process_results(doc, results):
+    doc = dict(doc)
 
     if "image" in doc: doc.pop("image")
 
     doc["prediction"] = results[0]
     for key, value in METRICS_FOR_MCA.items():
-        doc[key] = eval(value)(fuzzy_matching(doc['prediction']), "A")      # True 表示对，False 表示错
+        doc[key] = eval(value)(fuzzy_matching(doc['prediction']), egoschema_doc_to_target(doc))
         
     return {"egoschema_score": doc}
 
@@ -120,7 +131,7 @@ def egoschema_aggregate_results(results):
         for metric in METRICS_FOR_MCA.keys():
             output[f"{question_type}_{metric}"] = per_question_type[metric].mean()
 
-    output['overall'] = sum([_ for _ in output.values()]) / len(output)
+    output['overall'] = results['accuracy'].mean()
 
     eval_logger.info(f"Evaluation results: {output}")
     return output['overall'] * 100.

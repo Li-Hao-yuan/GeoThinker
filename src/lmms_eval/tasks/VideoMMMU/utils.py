@@ -87,6 +87,7 @@ def VideoMMMU_doc_to_visual(doc):
 
 
 def VideoMMMU_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
 
     question = doc["question"]
 
@@ -99,11 +100,13 @@ def VideoMMMU_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 
 def VideoMMMU_process_results(doc, results):
+    doc = dict(doc)
 
     if "image" in doc: doc.pop("image")
 

@@ -1,0 +1,5 @@
+The GeoThinker and GeoThinker-F research implementations and their integration code in this repository are released under the MIT License in `LICENSE`.
+
+Some files are based on Qwen, Hugging Face Transformers, and other Apache-licensed source code. They retain their upstream Apache License 2.0 notices and are covered by `LICENSES/Apache-2.0.txt`. Other third-party source files retain their own copyright headers and applicable licenses.
+
+The MIT license for the research implementations does not replace the licenses attached to third-party source code included in the repository.

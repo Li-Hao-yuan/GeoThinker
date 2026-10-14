@@ -1,8 +1,6 @@
 """PI3 geometry encoder implementation."""
 
 import torch
-import torch.nn as nn
-from typing import Optional
 
 from .base import BaseGeometryEncoder, GeometryEncoderConfig
 
@@ -55,7 +53,7 @@ class Pi3Encoder(BaseGeometryEncoder):
                     hidden = hidden["x_norm_patchtokens"]
                 
                 # Use the decoder to get rich features
-                features, pos = self.pi3.decode(hidden, N, H, W)
+                features, _ = self.pi3.decode(hidden, N, H, W)
 
                 # Extract features after register tokens
                 camera_token = features[:, 0:1, :]
@@ -65,7 +63,7 @@ class Pi3Encoder(BaseGeometryEncoder):
                     features = features.squeeze(0)  # Remove batch dimension if added
                     camera_token = camera_token.squeeze(0)  # Remove batch dimension if added
         
-        return features, camera_token
+        return features, camera_token, {}
     
 
     def get_feature_dim(self) -> int:

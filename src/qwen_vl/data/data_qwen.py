@@ -61,8 +61,9 @@ def preprocess_qwen_2_visual(
     tokenizer: transformers.PreTrainedTokenizer,
     grid_thw: List = [],
     visual_type: str = "image",
+    rl=False,
 ) -> Dict:
-    roles = {"human": "user", "gpt": "assistant"}
+    roles = {"human": "user", "gpt": "assistant", "user": "user", "assistant": "assistant"}
     system_message = "You are a helpful assistant."
     if visual_type not in ["image", "video"]:
         raise ValueError("visual_type must be either 'image' or 'video'")
@@ -77,6 +78,11 @@ def preprocess_qwen_2_visual(
     ori_convs = []
 
     for i, source in enumerate(sources):
+        if source[0]["from"] == "system":
+            system_message = source[0]["value"]
+            
+            source = source[1:]
+
         try:
             if roles[source[0]["from"]] != roles["human"]:
                 source = source[1:]
@@ -94,9 +100,12 @@ def preprocess_qwen_2_visual(
         for conv in source:
             try:
                 role = conv["role"]
-                content = conv["content"]
             except:
                 role = conv["from"]
+
+            try:
+                content = conv["content"]
+            except:
                 content = conv["value"]
             ori_conv = copy.deepcopy(conv)
             ori_convs.append(ori_conv)
@@ -126,15 +135,25 @@ def preprocess_qwen_2_visual(
                     content = "".join(new_parts)
 
             conv = [{"role": role, "content": content}]
-            encode_id = tokenizer.apply_chat_template(conv)
+            if rl and role == "user":
+                encode_id = tokenizer.apply_chat_template(conv, add_generation_prompt=True)
+            else: encode_id = tokenizer.apply_chat_template(conv)
 
-            input_id += encode_id
-            if role in ["user", "system"]:
-                target += [IGNORE_INDEX] * len(encode_id)
+            if not rl: 
+                input_id += encode_id
+                if role in ["user", "system"]:
+                    target += [IGNORE_INDEX] * len(encode_id)
+                else:
+                    target_mask = encode_id.copy()
+                    target_mask[:3] = [IGNORE_INDEX] * 3
+                    target += target_mask
             else:
-                target_mask = encode_id.copy()
-                target_mask[:3] = [IGNORE_INDEX] * 3
-                target += target_mask
+                if role in ["user", "system"]:
+                    input_id += encode_id
+                    target += encode_id
+                    prompt.append(ori_conv)
+                else:
+                    answer.append(ori_conv)
 
         assert len(input_id) == len(target), f"{len(input_id)} != {len(target)}"
         input_ids.append(input_id)
@@ -144,6 +163,15 @@ def preprocess_qwen_2_visual(
 
     input_ids = torch.tensor(input_ids, dtype=torch.long)
     targets = torch.tensor(targets, dtype=torch.long)
+
+    # <|im_start|>assistant\n
+
+    # SFT
+    # '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|>These are frames of a video.\nMeasuring from the closest point of each object, what is the direct distance between the keyboard and the table (in meters)?\nPlease answer the question using a single word or phrase.<|im_end|>\n<|im_start|>assistant\n1.3<|im_end|>\n'
+    # C<|im_end|>\n
+
+    # RL
+    # "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|><|vision_start|><|image_pad|><|vision_end|>These are frames of a video.\nIf I am standing by the light switch and facing the smoke detector, is the cabinet to the left or the right of the smoke detector?\nOptions:\nA. right\nB. left\nAnswer with the option's letter from the given choices directly.<|im_end|>\n
 
 
     del tokenizer
@@ -210,6 +238,7 @@ class LazySupervisedDataset(Dataset):
         self.data_args.image_processor.size["longest_edge"] = data_args.max_pixels
         self.data_args.image_processor.size["shortest_edge"] = data_args.min_pixels
 
+        self.rl = self.data_args.rl
         self.depart_smi_token = getattr(self.data_args, "depart_smi_token", False)
         self.smi_image_num = getattr(self.data_args, "smi_image_num", 8)
         self.smi_downsample_rate = getattr(self.data_args, "smi_downsample_rate", 2)
@@ -362,6 +391,8 @@ class LazySupervisedDataset(Dataset):
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
         num_base_retries = 3
         num_final_retries = 30
+        # i=1
+        # i = i % 500
 
         # try the current sample first
         for attempt_idx in range(num_base_retries):
@@ -373,6 +404,7 @@ class LazySupervisedDataset(Dataset):
             except Exception as e:
                 # sleep 1s in case it is a cloud disk issue
                 print(f"[Try #{attempt_idx}] Failed to fetch sample {i}. Exception:", e)
+                print(self.list_data_dict[i])
                 time.sleep(1)
 
         # try other samples, in case it is file corruption issue
@@ -388,6 +420,7 @@ class LazySupervisedDataset(Dataset):
                     f"[Try other #{attempt_idx}] Failed to fetch sample {next_index}. Exception:",
                     e,
                 )
+                print(self.list_data_dict[i])
                 pass
 
         try:
@@ -498,7 +531,7 @@ class LazySupervisedDataset(Dataset):
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
         video = None
         
-        if "video" in sources[0]:
+        if "video" in sources[0] and "images" not in sources[0]:
             sources[0]["images"] = self.read_video_images(sources[0])
             num_image = len(sources[0]["images"])
             sources[0]["conversations"][0]["value"] = sources[0]["conversations"][0]["value"].replace(
@@ -515,8 +548,6 @@ class LazySupervisedDataset(Dataset):
         if "images" in sources[0]:
             sources[0]["image"] = sources[0]["images"]
     
-        # import pdb
-        # pdb.set_trace()
 
         # notice that we use images as the tag
         if "image" in sources[0]:
@@ -565,6 +596,7 @@ class LazySupervisedDataset(Dataset):
                 # draw visual markers
                 self.draw_visual_marks(image_file, sources[0].get("spar_info", None))
 
+
                 image, grid_thw, geometry_encoder_inputs = [], [], []
                 for file in image_file:
                     ret = prepare_image_inputs(file, self.data_args.image_processor)
@@ -578,12 +610,14 @@ class LazySupervisedDataset(Dataset):
 
             grid_thw_merged = copy.deepcopy(grid_thw)
 
-            if self.depart_smi_token and len(sources[0][0]['value'].split("<image>")) > (self.smi_image_num+1):
+            # Decide depart by the actual number of loaded images, not by the <image>
+            # count of the first turn: some datasets (e.g. mllm4d) put a system message
+            # first, so turn-0 has 0 <image> and the old check wrongly skipped depart,
+            # leaving full-res placeholders while the model downsamples -> masked_scatter OOB.
+            if self.depart_smi_token and len(grid_thw) > self.smi_image_num:
                 merge_size = self.data_args.image_processor.merge_size*self.smi_downsample_rate
             else: merge_size = self.data_args.image_processor.merge_size
 
-            # import pdb
-            # pdb.set_trace()
 
             grid_thw_merged = [
                 merged_thw[0] * (merged_thw[1] // merge_size) * (merged_thw[2] // merge_size)
@@ -591,7 +625,8 @@ class LazySupervisedDataset(Dataset):
             ]
 
             data_dict = preprocess_qwen_2_visual(
-                sources, self.tokenizer, grid_thw=grid_thw_merged, visual_type="image"
+                sources, self.tokenizer, grid_thw=grid_thw_merged, visual_type="image", 
+                rl=self.rl
             )
 
             position_ids, _ = self.get_rope_index(
@@ -631,7 +666,8 @@ class LazySupervisedDataset(Dataset):
             ]
             sources = copy.deepcopy([e["conversations"] for e in sources])
             data_dict = preprocess_qwen_2_visual(
-                sources, self.tokenizer, grid_thw=grid_thw_merged, visual_type="video"
+                sources, self.tokenizer, grid_thw=grid_thw_merged, visual_type="video", 
+                rl=self.rl
             )
             position_ids, _ = self.get_rope_index(
                 self.data_args.image_processor.merge_size,
@@ -645,7 +681,8 @@ class LazySupervisedDataset(Dataset):
             grid_thw_merged = None
             sources = copy.deepcopy([e["conversations"] for e in sources])
             data_dict = preprocess_qwen_2_visual(
-                sources, self.tokenizer, grid_thw=grid_thw_merged
+                sources, self.tokenizer, grid_thw=grid_thw_merged, 
+                rl=self.rl
             )
             position_ids = (
                 torch.arange(0, data_dict["input_ids"].size(1))
@@ -675,9 +712,6 @@ class LazySupervisedDataset(Dataset):
             data_dict["video_grid_thw"] = grid_thw
         
         data_dict["tag"] = self.list_data_dict[i].get("tag", "2d")
-
-        # import pdb
-        # pdb.set_trace()
 
         return data_dict
 
@@ -778,8 +812,6 @@ class DataCollatorForSupervisedDataset(object):
         batch["video_grid_thw"] = video_grid_thw
         batch["position_ids"] = position_ids
 
-        # import pdb
-        # pdb.set_trace()
                 
         # assume all data in a batch has geometry_encoder_inputs
         if "geometry_encoder_inputs" in instances[0]:

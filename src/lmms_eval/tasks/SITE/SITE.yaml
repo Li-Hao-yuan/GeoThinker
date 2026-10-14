@@ -9,7 +9,7 @@ test_split: test
 output_type: generate_until
 doc_to_visual: !function utils.SITE_doc_to_visual
 doc_to_text: !function utils.SITE_doc_to_text
-doc_to_target: "ground_truth"
+doc_to_target: "answer"
 generation_kwargs:
   max_new_tokens: 16
   temperature: 0
@@ -22,6 +22,9 @@ process_results: !function utils.SITE_process_results
 metric_list:
   - metric: SITE_score
     aggregation: !function utils.SITE_aggregate_results
+    higher_is_better: true
+  - metric: SITE_CAA
+    aggregation: !function utils.SITE_aggregate_caa
     higher_is_better: true
 lmms_eval_specific_kwargs:
   default:
@@ -37,4 +40,4 @@ lmms_eval_specific_kwargs:
     mca_post_prompt: "Answer with the option's letter from the given choices directly."
     na_post_prompt: "Do not response anything other than a single number!"
 metadata:
-  - version: 0.0
+  version: 1.0

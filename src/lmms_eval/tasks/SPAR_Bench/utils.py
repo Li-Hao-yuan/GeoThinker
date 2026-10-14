@@ -40,11 +40,7 @@ with open(Path(__file__).parent / "SPAR_Bench.yaml", "r") as f:
 dataset_path = yaml.safe_load("".join(safe_data))["dataset_path"]
 
 
-if os.path.isdir(dataset_path):
-    cache_dir = dataset_path
-else:
-    cache_name = yaml.safe_load("".join(safe_data))["dataset_kwargs"]["cache_dir"]
-    cache_dir = os.path.join(base_cache_dir, cache_name)
+cache_dir = dataset_path
 
 def SPAR_Bench_doc_to_visual(doc):
     images = [Image.open(io.BytesIO(image_rb['bytes'])) for image_rb in doc['image']]
@@ -65,7 +61,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -103,6 +100,7 @@ def to_float(pred):
     return pred
 
 def SPAR_Bench_process_results(doc, results):
+    doc = dict(doc)
     if "image" in doc: doc.pop('image')
     
     doc['prediction'] = results[0]

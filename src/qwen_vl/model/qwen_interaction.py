@@ -285,8 +285,6 @@ class QwenVGGTInteractionv2Flash(QwenVGGTInteractionv2):
 
         if self.use_spatial_bias and is_reshaped:
             # gate_score: [B, S, Heads] -> [B, Heads, S, 1] 为了广播
-            # import pdb
-            # pdb.set_trace()
 
             gate_score = self.bias_gate(k_input).transpose(1, 2).unsqueeze(-1)
             
@@ -317,8 +315,6 @@ class QwenVGGTInteractionv2Flash(QwenVGGTInteractionv2):
             else:
                 attn_bias = attn_bias + mask_term
 
-            # import pdb
-            # pdb.set_trace()
 
             ### visual
             if False:

@@ -38,11 +38,12 @@ def gamebench_doc_to_visual(doc):
     if os.path.exists(video_path):
         video_path = video_path
     else:
-        raise FileExistsError(f"video path:{video_path} does not exist.")
+        raise FileNotFoundError(f"video path:{video_path} does not exist.")
     return [video_path]
 
 
 def gamebench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
     
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
@@ -66,7 +67,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -76,6 +78,7 @@ WORST_CASE_FOR_METRICS = {
 }
 
 def gamebench_process_results(doc, results):
+    doc = dict(doc)
     doc['prediction'] = results[0]
     for key, value in METRICS_FOR_MCA.items():
         doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc['answer'])

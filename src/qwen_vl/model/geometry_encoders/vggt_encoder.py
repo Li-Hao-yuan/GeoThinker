@@ -1,8 +1,6 @@
 """VGGT geometry encoder implementation."""
 
 import torch
-import torch.nn as nn
-from typing import Optional
 
 from .base import BaseGeometryEncoder, GeometryEncoderConfig
 
@@ -48,7 +46,7 @@ class VGGTEncoder(BaseGeometryEncoder):
         # Apply inverse reference frame transformation
         features = self._apply_inverse_reference_frame_transform(features)
         
-        return features, camera_token
+        return features, camera_token, {}
     
     def get_feature_dim(self) -> int:
         """Get VGGT feature dimension."""

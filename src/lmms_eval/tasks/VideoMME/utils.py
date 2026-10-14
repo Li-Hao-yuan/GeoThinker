@@ -35,6 +35,7 @@ def VideoMME_doc_to_visual(doc):
     return [video_path]
 
 def VideoMME_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
     
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
@@ -55,7 +56,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -65,6 +67,7 @@ WORST_CASE_FOR_METRICS = {
 }
 
 def VideoMME_process_results(doc, results):
+    doc = dict(doc)
 
     if "image" in doc.keys(): doc.pop("image")
 
@@ -83,10 +86,9 @@ def VideoMME_aggregate_results(results):
         per_class_anno = results.iloc[class_anno_indexes]
         
         for metric in METRICS_FOR_MCA.keys():
-            output[f"{class_anno}_{metric}".lower()] = per_class_anno[metric].sum()
+            output[f"{class_anno}_{metric}".lower()] = per_class_anno[metric].mean()
     
-    output['overall'] = sum([_ for _ in output.values()]) #/ len(output)
-    output['overall_mean'] = output['overall'] / 2700
+    output['overall'] = results['accuracy'].mean()
     
     eval_logger.info(f"Evaluation results: {output}")
-    return output['overall']
+    return output['overall'] * 100.

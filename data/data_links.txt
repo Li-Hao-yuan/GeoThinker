@@ -11,6 +11,9 @@ https://huggingface.co/PhysGame/PhysVLM-SFT
 # MindCube
 https://huggingface.co/datasets/MLL-Lab/MindCube
 
+# OmniSpatial (GeoThinker-F)
+https://huggingface.co/datasets/qizekun/OmniSpatial
+
 # VSI-590k
 https://huggingface.co/datasets/nyu-visionx/VSI-590K
 

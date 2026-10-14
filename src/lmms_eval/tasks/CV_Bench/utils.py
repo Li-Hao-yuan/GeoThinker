@@ -77,6 +77,7 @@ def CV_Bench_doc_to_visual(doc):
 
 
 def CV_Bench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
 
     # if doc['question_type'] not in NA_QUESTION_TYPES and doc['question_type'] not in MCA_QUESTION_TYPES:
     #     print(doc)
@@ -85,7 +86,7 @@ def CV_Bench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
 
-    options = doc["choices"]
+    options = list(doc["choices"])
     for i in range(len(options)):
         options[i] = chr(65+i)+"."+" "+options[i]
     options = "Options:\n" + "\n".join(options)
@@ -95,11 +96,13 @@ def CV_Bench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 
 def CV_Bench_process_results(doc, results):
+    doc = dict(doc)
 
     doc.pop('image')
     assert doc["answer"][1] in "ABCDEFGHJKL", print(doc["answer"])

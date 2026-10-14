@@ -24,6 +24,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This file has been modified for GeoThinker Unified; upstream Qwen/Hugging Face code remains Apache-2.0.
 import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -1091,7 +1092,7 @@ class Qwen2_5_VLDecoderLayer(nn.Module):
         self.cross_flag = hasattr(config, "geo_cross_attn") and config.geo_cross_attn
 
         if self.cross_flag:
-            self.geo_inject_version = getattr(config, "geo_inject_version", "v2flash")
+            self.geo_inject_version = getattr(config, "geo_inject_version", "v2_flash")
         
             if self.geo_inject_version in ["v1"]:
                 self.cross_flag = self.cross_flag and (layer_idx > quarter_num ) and (layer_idx < (config.num_hidden_layers - quarter_num)  )
@@ -1705,7 +1706,7 @@ class Qwen2_5_VLForConditionalGenerationWithVGGT(Qwen2_5_VLPreTrainedModel, Gene
         
         # Create feature fusion module
         fusion_config = FeatureFusionConfig(
-            fusion_method=getattr(config, "feature_fusion_method", "add"),
+            fusion_method=getattr(config, "feature_fusion_method", "zero"),
             hidden_size=config.hidden_size,
             num_heads=getattr(config, "fusion_attention_heads", 8),
             dropout=getattr(config, "fusion_dropout", 0.1),
@@ -1724,7 +1725,7 @@ class Qwen2_5_VLForConditionalGenerationWithVGGT(Qwen2_5_VLPreTrainedModel, Gene
 
                 n_image, _, height, width = geometry_encoder_inputs[bn].shape
                 # Encode geometry features
-                features, camera_token = self.geometry_encoder.encode(geometry_encoder_inputs[bn])
+                features, camera_token, _ = self.geometry_encoder.encode(geometry_encoder_inputs[bn])
                 
                 features = features.to(image_embeds.dtype)
 

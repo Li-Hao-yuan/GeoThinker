@@ -27,12 +27,13 @@ def vlm4d_doc_to_visual(doc):
     if os.path.exists(video_path):
         video_path = video_path
     else:
-        raise FileExistsError(f"video path:{video_path} does not exist")
+        raise FileNotFoundError(f"video path:{video_path} does not exist")
     return [video_path]
 
 
 
 def vlm4d_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
     # optionized_list = [f"{key}: {value}" for i, (key, value) in enumerate(doc['choices'].items())]
     optionized_str = doc['choices'][0].strip()[1:-1].replace(", ", ",\n")
@@ -43,6 +44,7 @@ def vlm4d_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     
 import ast
 def vlm4d_process_results(doc, results):
+    doc = dict(doc)
     
     doc['prediction'] = results[0]
     answer = doc['answer']

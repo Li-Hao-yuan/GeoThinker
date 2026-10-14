@@ -43,6 +43,7 @@ def QuantiPhy_v_doc_to_visual(doc):
 
 
 def QuantiPhy_v_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
         
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
@@ -61,7 +62,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -98,14 +100,13 @@ def to_float(pred):
     return pred
 
 def QuantiPhy_v_process_results(doc, results):
+    doc = dict(doc)
     doc['prediction'] = results[0]
 
     for key, value in METRICS_FOR_NA.items():
-        doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc['answer'])
-
         try:
             doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc['answer'])
-        except TypeError:
+        except (TypeError, ValueError, ZeroDivisionError):
             doc[key] = WORST_CASE_FOR_METRICS[key]
 
     return {"QuantiPhy_v_score": doc}

@@ -9,7 +9,7 @@ from torch.utils.data import Dataset, Sampler, DataLoader
 
 
 from transformers import Trainer
-from transformers.trainer import is_sagemaker_mp_enabled, get_parameter_names, has_length, ALL_LAYERNORM_LAYERS, logger, is_accelerate_available, is_datasets_available
+from transformers.trainer import is_sagemaker_mp_enabled, get_parameter_names, has_length, logger, is_accelerate_available, is_datasets_available
 from transformers.trainer_utils import seed_worker
 from transformers.trainer_pt_utils import get_length_grouped_indices as get_length_grouped_indices_hf
 from transformers.trainer_pt_utils import AcceleratorConfig
@@ -133,34 +133,57 @@ def get_length_grouped_indices_auto_single(lengths, batch_size, world_size, gene
     return [i for megabatch in megabatches for batch in megabatch for i in batch]
 
 
+# def get_modality_length_grouped_indices_auto(lengths, batch_size, world_size, generator=None):
+#     # We need to use torch for the random part as a distributed sampler will set the random seed for torch.
+#     assert all(l != 0 for l in lengths), "Should not have zero length."
+#     if all(l > 0 for l in lengths) or all(l < 0 for l in lengths):
+#         # all samples are in the same modality
+#         return get_length_grouped_indices_auto_single(lengths, batch_size, world_size, generator=generator)
+#     mm_indices, mm_lengths = zip(*[(i, l) for i, l in enumerate(lengths) if l > 0])
+#     lang_indices, lang_lengths = zip(*[(i, -l) for i, l in enumerate(lengths) if l < 0])
+
+#     mm_shuffle = [mm_indices[i] for i in get_length_grouped_indices_auto_single(mm_lengths, batch_size, world_size, generator=None)]
+#     lang_shuffle = [lang_indices[i] for i in get_length_grouped_indices_auto_single(lang_lengths, batch_size, world_size, generator=None)]
+#     megabatch_size = world_size * batch_size
+#     mm_megabatches = [mm_shuffle[i : i + megabatch_size] for i in range(0, len(mm_shuffle), megabatch_size)]
+#     lang_megabatches = [lang_shuffle[i : i + megabatch_size] for i in range(0, len(lang_shuffle), megabatch_size)]
+
+#     last_mm = mm_megabatches[-1]
+#     last_lang = lang_megabatches[-1]
+#     additional_batch = last_mm + last_lang
+#     megabatches = mm_megabatches[:-1] + lang_megabatches[:-1]
+#     megabatch_indices = torch.randperm(len(megabatches), generator=generator)
+#     megabatches = [megabatches[i] for i in megabatch_indices]
+
+#     # FIXME: Hard code to avoid last batch mixed with different modalities
+#     # if len(additional_batch) > 0:
+#     #     megabatches.append(sorted(additional_batch))
+
+#     return [i for megabatch in megabatches for i in megabatch]
+
+
 def get_modality_length_grouped_indices_auto(lengths, batch_size, world_size, generator=None):
     # We need to use torch for the random part as a distributed sampler will set the random seed for torch.
     assert all(l != 0 for l in lengths), "Should not have zero length."
     if all(l > 0 for l in lengths) or all(l < 0 for l in lengths):
         # all samples are in the same modality
-        return get_length_grouped_indices_auto_single(lengths, batch_size, world_size, generator=generator)
+        return get_length_grouped_indices_auto_single([abs(l) for l in lengths], batch_size, world_size, generator=generator)
     mm_indices, mm_lengths = zip(*[(i, l) for i, l in enumerate(lengths) if l > 0])
     lang_indices, lang_lengths = zip(*[(i, -l) for i, l in enumerate(lengths) if l < 0])
 
-    mm_shuffle = [mm_indices[i] for i in get_length_grouped_indices_auto_single(mm_lengths, batch_size, world_size, generator=None)]
-    lang_shuffle = [lang_indices[i] for i in get_length_grouped_indices_auto_single(lang_lengths, batch_size, world_size, generator=None)]
+    mm_shuffle = [mm_indices[i] for i in get_length_grouped_indices_auto_single(mm_lengths, batch_size, world_size, generator=generator)]
+    lang_shuffle = [lang_indices[i] for i in get_length_grouped_indices_auto_single(lang_lengths, batch_size, world_size, generator=generator)]
     megabatch_size = world_size * batch_size
-    mm_megabatches = [mm_shuffle[i : i + megabatch_size] for i in range(0, len(mm_shuffle), megabatch_size)]
-    lang_megabatches = [lang_shuffle[i : i + megabatch_size] for i in range(0, len(lang_shuffle), megabatch_size)]
+    mm_full_count = len(mm_shuffle) // megabatch_size
+    lang_full_count = len(lang_shuffle) // megabatch_size
+    mm_megabatches = [mm_shuffle[i * megabatch_size : (i + 1) * megabatch_size] for i in range(mm_full_count)]
+    lang_megabatches = [lang_shuffle[i * megabatch_size : (i + 1) * megabatch_size] for i in range(lang_full_count)]
 
-    last_mm = mm_megabatches[-1]
-    last_lang = lang_megabatches[-1]
-    additional_batch = last_mm + last_lang
-    megabatches = mm_megabatches[:-1] + lang_megabatches[:-1]
+    megabatches = mm_megabatches + lang_megabatches
     megabatch_indices = torch.randperm(len(megabatches), generator=generator)
     megabatches = [megabatches[i] for i in megabatch_indices]
 
-    # FIXME: Hard code to avoid last batch mixed with different modalities
-    # if len(additional_batch) > 0:
-    #     megabatches.append(sorted(additional_batch))
-
     return [i for megabatch in megabatches for i in megabatch]
-
 
 class LengthGroupedSampler(Sampler):
     r"""
@@ -207,11 +230,11 @@ class LengthGroupedSampler(Sampler):
 
 
 
-def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
+def _get_train_sampler(self, dataset=None) -> Optional[torch.utils.data.Sampler]:
     if self.train_dataset is None or not has_length(self.train_dataset):
         return None
 
-    if self.args.group_by_length:
+    if hasattr(self.args, "group_by_length") and self.args.group_by_length:
         lengths = self.train_dataset.lengths
         return LengthGroupedSampler(
             # self.args.train_batch_size * self.args.gradient_accumulation_steps, # TODO: seems that we should not have gradient_accumulation_steps
@@ -220,7 +243,7 @@ def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
             world_size=self.args.world_size * self.args.gradient_accumulation_steps,  # TODO: seems that this may work?
             lengths=lengths,
         )
-    elif self.args.group_by_modality_length:
+    elif hasattr(self.args, "group_by_modality_length") and self.args.group_by_modality_length:
         lengths = self.train_dataset.modality_lengths
         return LengthGroupedSampler(
             # self.args.train_batch_size * self.args.gradient_accumulation_steps, # TODO: seems that we should not have gradient_accumulation_steps
@@ -230,7 +253,7 @@ def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
             lengths=lengths,
             group_by_modality=True,
         )
-    elif self.args.group_by_modality_length_auto:
+    elif hasattr(self.args, "group_by_modality_length_auto") and self.args.group_by_modality_length_auto:
         lengths = self.train_dataset.modality_lengths
         return LengthGroupedSampler(
             # self.args.train_batch_size * self.args.gradient_accumulation_steps, # TODO: seems that we should not have gradient_accumulation_steps
@@ -240,7 +263,7 @@ def _get_train_sampler(self) -> Optional[torch.utils.data.Sampler]:
             lengths=lengths,
             group_by_modality_auto=True,
         )
-    elif self.args.group_by_varlen:
+    elif hasattr(self.args, "group_by_varlen") and self.args.group_by_varlen:
         lengths = self.train_dataset.lengths
         return LengthGroupedSampler(
             self.args.train_batch_size * self.args.gradient_accumulation_steps,

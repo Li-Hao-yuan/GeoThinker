@@ -57,7 +57,7 @@ cache_dir = dataset_path
 
 def SITE_doc_to_visual(doc):
 
-    image_files = doc["visual"]
+    image_files = list(doc["visual"])
     for i, image_file in enumerate(image_files):
         image_files[i] = os.path.join(cache_dir, image_file).replace("evaluation", "media")
 
@@ -72,13 +72,12 @@ def SITE_doc_to_visual(doc):
 
 
 def SITE_doc_to_text(doc, lmms_eval_specific_kwargs=None):
-    # import pdb
-    # pdb.set_trace()
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
 
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
     question = doc["question"]
 
-    options = doc["options"]
+    options = list(doc["options"])
     for i in range(len(options)):
         options[i] = chr(65+i)+"."+" "+options[i]
     options = "Options:\n" + "\n".join(options)
@@ -88,16 +87,18 @@ def SITE_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 def SITE_process_results(doc, results):
+    doc = dict(doc)
     doc["prediction"] = results[0]
     for key, value in METRICS_FOR_MCA.items():
         doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc["answer"])      # True 表示对，False 表示错
         
     
-    return {"SITE_score": doc}
+    return {"SITE_score": doc, "SITE_CAA": doc}
 
 
 def SITE_aggregate_results(results):
@@ -115,3 +116,27 @@ def SITE_aggregate_results(results):
 
     eval_logger.info(f"Evaluation results: {output}")
     return output['overall'] * 100.
+
+
+def SITE_aggregate_caa(results):
+    """Official CAA: sum(acc - 1/K) / sum(1 - 1/K), in percent.
+
+    https://github.com/wenqi-wang20/SITE-Bench/blob/main/eval_scripts/aggregate.py
+    """
+    if not results:
+        raise ValueError("Cannot aggregate an empty SITE evaluation.")
+    totals = {}
+    for record in results:
+        option_count = len(record["options"])
+        if option_count < 2:
+            raise ValueError("SITE CAA requires at least two options per question.")
+        chance = 1.0 / option_count
+        category = record["category"]
+        numerator, denominator = totals.get(category, (0.0, 0.0))
+        totals[category] = (numerator + record["accuracy"] - chance, denominator + 1 - chance)
+    output = {category: numerator / denominator * 100 for category, (numerator, denominator) in totals.items()}
+    numerator = sum(value[0] for value in totals.values())
+    denominator = sum(value[1] for value in totals.values())
+    output["overall"] = numerator / denominator * 100
+    eval_logger.info(f"SITE Chance-Adjusted Accuracy: {output}")
+    return output["overall"]

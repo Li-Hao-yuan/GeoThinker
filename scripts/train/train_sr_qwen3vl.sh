@@ -1,54 +1,45 @@
-#!/bin/bash
-# Complete QwenVL Training Launch Script with Full Parameter Documentation
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Qwen3VL works on transformers=4.57.0
-pip install transformers==4.57.0
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT_DIR"
 
-# ======================
-# Distributed Configuration
-# ======================
-MASTER_ADDR="127.0.0.1"                     # [Required] Master node IP for multi-GPU training
-MASTER_PORT=$(shuf -i 20000-29999 -n 1)     # Random port to avoid conflicts
-NPROC_PER_NODE=8  # Automatically detects available GPUs
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-
-# ======================
-# Path Configuration
-# ======================
-MODEL_PATH="Qwen/Qwen3-VL-8B-Instruct/"  # [ModelArguments] Pretrained model path
+# This backbone was released against Transformers 4.57.0.
+MODEL_PATH="${MODEL_PATH:-Qwen/Qwen3-VL-8B-Instruct}"
 GEOMETRY_ENCODER_TYPE="vggt"
-GEOMETRY_ENCODER_PATH="facebook/VGGT-1B"
-OUTPUT_DIR="PATH_TO_OUTPUT_DIR"                   # Directory for saving checkpoints
-CACHE_DIR="./cache"                        # [TrainingArguments] Cache directory for models
-mkdir -p $OUTPUT_DIR
+GEOMETRY_ENCODER_PATH="${GEOMETRY_ENCODER_PATH:-facebook/VGGT-1B}"
+OUTPUT_DIR="${OUTPUT_DIR:-outputs/geothinker/geothinker_qwen3vl}"
+CACHE_DIR="${CACHE_DIR:-./cache}"
+DATASETS="${DATASETS:-llava_hound_64k_32frame,spar_234k,vsi_590k_32frame,vlm3r_vsi_205k_32frames,vlm3r_vst_132k_32frames,phygames_140k,mindcube_10k,cambrian_s_3m_subset_32frame}"
+LR="${LR:-1e-5}"
+NPROC_PER_NODE="${NPROC_PER_NODE:-8}"
+WORLD_SIZE="${WORLD_SIZE:-1}"
+NODE_RANK="${NODE_RANK:-0}"
+MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
+MASTER_PORT="${MASTER_PORT:-29500}"
+TOTAL_BATCH_SIZE="${TOTAL_BATCH_SIZE:-64}"
+GRADIENT_ACCUMULATION_STEPS="${GRADIENT_ACCUMULATION_STEPS:-$((TOTAL_BATCH_SIZE / NPROC_PER_NODE / WORLD_SIZE))}"
 
-# ======================
-# Model Configuration
-# ======================
-DATASETS="llava_hound_64k_32frame,spar_234k,vsi_590k_32frame,vlm3r_vsi_205k_32frames,vlm3r_vst_132k_32frames,phygames_140k,mindcube_10k,cambrian_s_3m_subset_32frame"
+mkdir -p "$OUTPUT_DIR"
 
-# ======================
-# Training Hyperparameters
-# ======================
-LR=1e-5
-total_batch_size=64
-GRADIENT_ACCUMULATION_STEPS=$(($total_batch_size / $NPROC_PER_NODE))
-
-torchrun --nproc_per_node=$NPROC_PER_NODE \
-            --master_addr=$MASTER_ADDR \
-            --master_port=$MASTER_PORT \
+torchrun --nproc_per_node="$NPROC_PER_NODE" \
+            --nnodes="$WORLD_SIZE" \
+            --node_rank="$NODE_RANK" \
+            --master_addr="$MASTER_ADDR" \
+            --master_port="$MASTER_PORT" \
             src/qwen_vl/train/train_qwen.py \
-            --model_name_or_path $MODEL_PATH \
+            --geometry_method geothinker \
+            --model_name_or_path "$MODEL_PATH" \
             --tune_mm_llm True \
             --tune_mm_vision False \
             --tune_mm_mlp False \
-            --dataset_use $DATASETS \
-            --output_dir $OUTPUT_DIR \
-            --cache_dir $CACHE_DIR \
+            --dataset_use "$DATASETS" \
+            --output_dir "$OUTPUT_DIR" \
+            --cache_dir "$CACHE_DIR" \
             --bf16 \
             --per_device_train_batch_size 1 \
-            --gradient_accumulation_steps $GRADIENT_ACCUMULATION_STEPS \
-            --learning_rate $LR \
+            --gradient_accumulation_steps "$GRADIENT_ACCUMULATION_STEPS" \
+            --learning_rate "$LR" \
             --mm_projector_lr 1e-5 \
             --vision_tower_lr 1e-6 \
             --optim adamw_torch \
@@ -75,10 +66,11 @@ torchrun --nproc_per_node=$NPROC_PER_NODE \
             --seed 0 \
             --report_to "none" \
             --use_geometry_encoder true \
-            --geometry_encoder_type $GEOMETRY_ENCODER_TYPE \
-            --geometry_encoder_path $GEOMETRY_ENCODER_PATH \
+            --geometry_encoder_type "$GEOMETRY_ENCODER_TYPE" \
+            --geometry_encoder_path "$GEOMETRY_ENCODER_PATH" \
             --feature_fusion_method "zero" \
             --geo_cross_attn True \
+            --geo_inject_version "v2_flash" \
             --geo_importance_gate True \
             --depart_smi_token True \
-            > ${OUTPUT_DIR}/train.log 2>&1
+            > "${OUTPUT_DIR}/train.log" 2>&1

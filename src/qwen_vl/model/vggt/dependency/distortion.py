@@ -177,6 +177,4 @@ if __name__ == "__main__":
             max_diff = max(max_diff, diff)
             print(f"diff: {diff}, max_diff: {max_diff}")
 
-    import pdb
 
-    pdb.set_trace()

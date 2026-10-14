@@ -44,11 +44,7 @@ with open(Path(__file__).parent / "vstibench.yaml", "r") as f:
 dataset_path = yaml.safe_load("".join(safe_data))["dataset_path"]
 
 
-if os.path.isdir(dataset_path):
-    cache_dir = dataset_path
-else:
-    cache_name = yaml.safe_load("".join(safe_data))["dataset_kwargs"]["cache_dir"]
-    cache_dir = os.path.join(base_cache_dir, cache_name)
+cache_dir = dataset_path
 
 def vstibench_doc_to_visual(doc):
     video_path = doc["video_path"]
@@ -56,11 +52,12 @@ def vstibench_doc_to_visual(doc):
     if os.path.exists(video_path):
         video_path = video_path
     else:
-        raise FileExistsError(f"video path:{video_path} does not exist.")
+        raise FileNotFoundError(f"video path:{video_path} does not exist.")
     return [video_path]
 
 
 def vstibench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
         
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
@@ -86,7 +83,8 @@ def fuzzy_matching(pred):
     answer_matches = re.findall(r'<answer>(.*?)</answer>', pred, re.DOTALL)
     if len(answer_matches) > 0: pred = answer_matches[-1]
 
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -123,22 +121,27 @@ def to_float(pred):
     return pred
 
 def vstibench_process_results(doc, results):
+    doc = dict(doc)
     doc['prediction'] = results[0]
     if doc['question_type'] in MCA_QUESTION_TYPES:
         for key, value in METRICS_FOR_MCA.items():
             doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc['mc_answer'])
     elif doc['question_type'] in NA_QUESTION_TYPES:
         for key, value in METRICS_FOR_NA.items():
-            doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc['ground_truth'])
-
             try:
                 doc[key] = eval(value)(fuzzy_matching(doc['prediction']), doc['ground_truth'])
-            except TypeError:
+            except (TypeError, ValueError, ZeroDivisionError):
                 doc[key] = WORST_CASE_FOR_METRICS[key]
     else:
         raise ValueError(f"Unknown question type: {doc['question_type']}")
 
     return {"vstibench_score": doc}
+
+
+def vstibench_doc_to_target(doc):
+    if doc['question_type'] in MCA_QUESTION_TYPES:
+        return doc['mc_answer']
+    return doc['ground_truth']
 
 def vstibench_aggregate_results(results):
     results = pd.DataFrame(results)

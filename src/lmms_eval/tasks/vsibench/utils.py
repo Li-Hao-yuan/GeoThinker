@@ -43,11 +43,7 @@ with open(Path(__file__).parent / "vsibench.yaml", "r") as f:
             safe_data.append(line)
 
 dataset_path = yaml.safe_load("".join(safe_data))["dataset_path"]
-if os.path.isdir(dataset_path):
-    cache_dir = dataset_path
-else:
-    cache_name = yaml.safe_load("".join(safe_data))["dataset_kwargs"]["cache_dir"]
-    cache_dir = os.path.join(base_cache_dir, cache_name)
+cache_dir = dataset_path
 
 def vsibench_doc_to_visual(doc):
     video_path = doc["dataset"] + "/" + doc["scene_name"] + ".mp4"
@@ -55,11 +51,12 @@ def vsibench_doc_to_visual(doc):
     if os.path.exists(video_path):
         video_path = video_path
     else:
-        raise FileExistsError(f"video path:{video_path} does not exist.")
+        raise FileNotFoundError(f"video path:{video_path} does not exist.")
     return [video_path]
 
 
 def vsibench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
     question = doc["question"]
         
     pre_prompt = lmms_eval_specific_kwargs.get("pre_prompt", "") or "These are frames of a video."
@@ -82,7 +79,8 @@ def process_docs(dataset: datasets.Dataset) -> datasets.Dataset:
     return dataset
 
 def fuzzy_matching(pred):
-    return pred.split(' ')[0].rstrip('.').strip()
+    tokens = (pred or "").strip().split()
+    return tokens[0].rstrip(".") if tokens else ""
 
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
@@ -109,6 +107,7 @@ def to_float(pred):
     return pred
 
 def vsibench_process_results(doc, results):
+    doc = dict(doc)
     
     doc['prediction'] = results[0]
     if doc['question_type'] in MCA_QUESTION_TYPES:

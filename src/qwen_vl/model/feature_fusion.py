@@ -55,11 +55,12 @@ def all_gather_batch(tensors):
 @dataclass
 class FeatureFusionConfig:
     """Configuration for feature fusion."""
-    fusion_method: str = "add"  # "add", "concat", "gated", "weighted", "cross_attention", "zero"
+    fusion_method: str = "zero"  # "add", "concat", "gated", "weighted", "cross_attention", "zero"
     hidden_size: int = 3584
     num_heads: int = 8
     dropout: float = 0.1
     num_layers: int = 1
+    cam_merger_type: str = "zero"
 
 class CrossAttentionBlock(nn.Module):
     """Single cross-attention block with position encoding, MLP and residual connections."""
@@ -205,6 +206,7 @@ class FeatureFusionModule(nn.Module):
         self.config = config
         self.fusion_method = config.fusion_method
         self.hidden_size = config.hidden_size
+        self.cam_merger_type = config.cam_merger_type
         
         self._build_fusion_layers()
     
@@ -237,7 +239,13 @@ class FeatureFusionModule(nn.Module):
             self.weight_2d = nn.Parameter(torch.tensor(0.))
             self.weight_3d = nn.Parameter(torch.tensor(1.))
     
-    def forward(self, features_2d: torch.Tensor, features_3d: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        features_2d: torch.Tensor,
+        features_3d: torch.Tensor,
+        camera_tokens: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+    ):
         """
         Fuse 2D and 3D features.
         
@@ -289,8 +297,22 @@ class FeatureFusionModule(nn.Module):
 
         else:
             raise ValueError(f"Unknown fusion method: {self.fusion_method}")
-    
-    
+
+        if self.cam_merger_type == "add":
+            if camera_tokens is None:
+                raise ValueError("camera_tokens are required when cam_merger_type='add'")
+            fusion_feature = fusion_feature + camera_tokens.unsqueeze(1)
+        elif self.cam_merger_type == "concat":
+            if camera_tokens is None:
+                raise ValueError("camera_tokens are required when cam_merger_type='concat'")
+            merged = []
+            for index in range(fusion_feature.shape[0]):
+                merged.append(camera_tokens[index].reshape(-1, camera_tokens.shape[-1]))
+                merged.append(fusion_feature[index].reshape(-1, fusion_feature.shape[-1]))
+            fusion_feature = torch.cat(merged)
+        elif self.cam_merger_type != "zero":
+            raise ValueError(f"Unknown camera merger type: {self.cam_merger_type}")
+
         return fusion_feature, features_3d
 
 class GeometryFeatureMerger(nn.Module):

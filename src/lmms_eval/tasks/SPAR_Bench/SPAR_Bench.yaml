@@ -10,7 +10,7 @@ output_type: generate_until
 process_docs: !function utils.process_docs
 doc_to_visual: !function utils.SPAR_Bench_doc_to_visual
 doc_to_text: !function utils.SPAR_Bench_doc_to_text
-doc_to_target: "ground_truth"
+doc_to_target: "answer"
 generation_kwargs:
   max_new_tokens: 128
   temperature: 0
@@ -38,4 +38,4 @@ lmms_eval_specific_kwargs:
     mca_post_prompt: "Answer with the option's letter from the given choices directly."
     na_post_prompt: "Do not response anything other than a single number!"
 metadata:
-  - version: 0.0
+  version: 1.0

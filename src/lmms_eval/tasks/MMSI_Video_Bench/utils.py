@@ -72,20 +72,33 @@ cache_dir = dataset_path
 #     cache_dir = os.path.join(base_cache_dir, cache_name)
 
 def MMSI_Video_Bench_doc_to_visual(doc):
+    import decord
+
+    frame_budget = int(os.getenv("MMSI_VIDEO_MAX_FRAMES", "50"))
+    if frame_budget <= 0:
+        raise ValueError("MMSI_VIDEO_MAX_FRAMES must be positive.")
     images = []
-    for image in doc['images']:
-        if image.endswith(".mp4"): folder = "videos"
-        else: folder = "ref_images"
-
-        image_path = os.path.join(cache_dir, folder, image).replace("evaluation", "media")
-
-        images.append(image_path)
-
-
-    return images
+    for media in doc['images']:
+        is_video = media.endswith(".mp4")
+        folder = "videos" if is_video else "ref_images"
+        media_path = os.path.join(cache_dir, folder, media).replace("evaluation", "media")
+        if not os.path.isfile(media_path):
+            raise FileNotFoundError(f"MMSI-Video media not found: {media_path}")
+        if is_video:
+            reader = decord.VideoReader(media_path)
+            if not len(reader):
+                raise ValueError(f"Empty MMSI-Video video: {media_path}")
+            indices = np.linspace(0, len(reader) - 1, min(frame_budget, len(reader)), dtype=int)
+            images.extend(Image.fromarray(reader[int(index)].asnumpy()).convert("RGB") for index in indices)
+        else:
+            with Image.open(media_path) as image:
+                images.append(image.convert("RGB"))
+    # Keep reference images and frames from every video in one sample.
+    return [images]
 
 
 def MMSI_Video_Bench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
+    lmms_eval_specific_kwargs = lmms_eval_specific_kwargs or {}
 
     # if doc['question_type'] not in NA_QUESTION_TYPES and doc['question_type'] not in MCA_QUESTION_TYPES:
     #     print(doc)
@@ -94,7 +107,7 @@ def MMSI_Video_Bench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
     task_prompt = doc["task_prompt"]
     user_prompt = doc["user_prompt"]
     
-    options = doc["options"]
+    options = list(doc["options"])
     for i in range(len(options)):
         options[i] = chr(65+i)+"."+" "+options[i]
     options = "Options:\n" + "\n".join(options)
@@ -105,11 +118,13 @@ def MMSI_Video_Bench_doc_to_text(doc, lmms_eval_specific_kwargs=None):
 
 def fuzzy_matching(text: str) -> str:
     # 只取第一个词，去掉结尾的句点，并做大小写归一
-    return (text or "").split(" ")[0].rstrip(".").strip().lower()
+    tokens = (text or "").strip().split()
+    return tokens[0].rstrip(".").lower() if tokens else ""
 def exact_match(pred, target):
     return 1. if pred.lower() == target.lower() else 0.
 
 def MMSI_Video_Bench_process_results(doc, results):
+    doc = dict(doc)
     doc.pop('images')
     doc["prediction"] = results[0]
     for key, value in METRICS_FOR_MCA.items():
@@ -123,13 +138,14 @@ def MMSI_Video_Bench_aggregate_results(results):
     results = pd.DataFrame(results)
     output = {}
 
-    for question_type, question_type_indexes in results.groupby('ground_truth').groups.items():
+    for question_type, question_type_indexes in results.groupby('type').groups.items():
         per_question_type = results.iloc[question_type_indexes]
         
         for metric in METRICS_FOR_MCA.keys():
             output[f"{question_type}_{metric}"] = per_question_type[metric].mean()
 
-    output['overall'] = sum([_ for _ in output.values()]) / len(output)
+    # Official MMSI-Video-Bench reports the mean over all samples.
+    output['overall'] = results['accuracy'].mean()
 
     eval_logger.info(f"Evaluation results: {output}")
     return output['overall'] * 100.

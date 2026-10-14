@@ -100,28 +100,48 @@ class GeoThinker(lmms):
 
         config = AutoConfig.from_pretrained(pretrained)
 
-        if getattr(config, "use_geometry_encoder", False) or getattr(config, "use_vggt_feature", False):
-            if getattr(config, "architectures", "")[0] == "Qwen3VLForConditionalGenerationWithVGGT":
-                assert USING_QWEN3VL
-                load_class = Qwen3VLForConditionalGenerationWithVGGT
-                eval_logger.info("Using Qwen3VLForConditionalGenerationWithVGGT")
-            elif getattr(config, "architectures", "")[0] == "Qwen2_5_VLForConditionalGenerationWithVGGT":
-                load_class = Qwen2_5_VLForConditionalGenerationWithVGGT
-                eval_logger.info("Using Qwen2_5_VLForConditionalGenerationWithVGGT")
-            else:
-                print("Can not find such model\n", config)
-                raise 
+        architectures = getattr(config, "architectures", []) or []
+        architecture = architectures[0] if architectures else ""
+        configured_geometry_method = getattr(config, "geometry_method", None)
+        if configured_geometry_method is None:
+            # Some GeoThinker-F checkpoints omit the explicit geometry_method config field.
+            geometry_method = "geothinker_f" if getattr(config, "geo_inject_version", None) == "v3_2" else "geothinker"
         else:
-            if getattr(config, "architectures", "")[0] == "Qwen3VLForConditionalGeneration":
+            geometry_method = str(configured_geometry_method).lower()
+        if geometry_method not in {"geothinker", "geothinker_f"}:
+            raise ValueError(f"Unsupported geometry_method in model config: {geometry_method!r}")
+
+        is_qwen3 = architecture.startswith("Qwen3VL")
+        is_custom_model = geometry_method != "geothinker" or (
+            architecture.endswith("WithVGGT")
+            or getattr(config, "use_geometry_encoder", False)
+            or getattr(config, "use_vggt_feature", False)
+        )
+
+        if is_custom_model:
+            if is_qwen3:
                 assert USING_QWEN3VL
-                load_class = Qwen3VLForConditionalGeneration
-                eval_logger.info("Using Qwen3VLForConditionalGeneration")
-            elif getattr(config, "architectures", "")[0] == "Qwen2_5_VLForConditionalGeneration":
-                load_class = Qwen2_5_VLForConditionalGeneration
-                eval_logger.info("Using Qwen2_5_VLForConditionalGeneration")
+                if geometry_method == "geothinker_f":
+                    from qwen_vl.model.qwenvl3.modeling_qwen3_vl_geothinker_f import Qwen3VLForConditionalGenerationWithVGGT as load_class
+                else:
+                    load_class = Qwen3VLForConditionalGenerationWithVGGT
+            elif architecture.startswith("Qwen2_5_VL"):
+                if geometry_method == "geothinker_f":
+                    from qwen_vl.model.modeling_qwen2_5_vl_geothinker_f import Qwen2_5_VLForConditionalGenerationWithVGGT as load_class
+                else:
+                    load_class = Qwen2_5_VLForConditionalGenerationWithVGGT
             else:
-                print("Can not find such model\n", config)
-                raise 
+                raise ValueError(f"Unsupported GeoThinker model architecture: {architecture!r}")
+            eval_logger.info("Using {} geometry branch with {}", geometry_method, architecture)
+        elif architecture == "Qwen3VLForConditionalGeneration":
+            assert USING_QWEN3VL
+            load_class = Qwen3VLForConditionalGeneration
+            eval_logger.info("Using Qwen3VLForConditionalGeneration")
+        elif architecture == "Qwen2_5_VLForConditionalGeneration":
+            load_class = Qwen2_5_VLForConditionalGeneration
+            eval_logger.info("Using Qwen2_5_VLForConditionalGeneration")
+        else:
+            raise ValueError(f"Unsupported GeoThinker model architecture: {architecture!r}")
 
             
         if use_flash_attention_2:
