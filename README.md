@@ -20,6 +20,8 @@ This repository supports two related works with a shared training and evaluation
 
 ## News
 
+- **2026-10-14:** GeoThinker-F code & model weights released.
+- **2026-07-05:** GeoThinker is accepted to ICML2026.
 - **2026-02-04:** GeoThinker model weights released.
 - **2026-02-02:** GeoThinker code released.
 
