@@ -4,7 +4,9 @@
 
 <div align="center">
   <a href="https://arxiv.org/abs/2602.06037"><img src="https://img.shields.io/badge/arXiv-GeoThinker-green" alt="GeoThinker paper"></a>
+  <a href="https://arxiv.org/abs/2610.20592"><img src="https://img.shields.io/badge/arXiv-GeoThinker--F-green" alt="GeoThinker-F paper"></a>
   <a href="https://li-hao-yuan.github.io/GeoThinker/"><img src="https://img.shields.io/badge/Website-GeoThinker-blue" alt="GeoThinker project page"></a>
+  <a href="https://qihangcao.github.io/GeoThinker-Family-Website/"><img src="https://img.shields.io/badge/Website-GeoThinker--Family-blue" alt="GeoThinker Family project page"></a>
   <a href="https://huggingface.co/lihy285/GeoThinker"><img src="https://img.shields.io/badge/Models-GeoThinker-yellow" alt="GeoThinker models"></a>
   <a href="https://huggingface.co/lihy285/GeoThinkerF"><img src="https://img.shields.io/badge/Models-GeoThinker--F-orange" alt="GeoThinker-F models"></a>
 </div>
