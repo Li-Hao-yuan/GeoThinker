@@ -15,7 +15,7 @@ else:
 
 
 class QwenVGGTInteractionv1(nn.Module):
-    def __init__(self, config, layer_idx=None):
+    def __init__(self, config, layer_idx=None, **kwargs):
         super().__init__()
         hidden_size = config.hidden_size
         vggt_dim = hidden_size
@@ -25,6 +25,8 @@ class QwenVGGTInteractionv1(nn.Module):
         self.head_dim = hidden_size // num_heads
         
         # 1. Query Projector (来自 LLM Hidden State)
+        # In our actual implementation, this will not cause any issues. 
+        # If you encounter an error stating that `Qwen2RMSNorm` cannot be found, please locate its definition within `modeling_qwen_x_vl.py`.
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.vggt_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.q_proj = nn.Linear(hidden_size, hidden_size, bias=False)
