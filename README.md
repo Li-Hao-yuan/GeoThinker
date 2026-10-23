@@ -524,6 +524,14 @@ If you use GeoThinker, please cite:
   year={2026},
   url={https://arxiv.org/abs/2602.06037}
 }
+
+@article{li2026geothinker,
+  title={GeoThinker-$ F $: Endogenous Predictive World Representations for Fast Spatial Intelligence},
+  author={Li, Haoyuan and Cao, Qihang and Zhou, Huanyuan and Hu, Xin and Chen, Sijia and Guo, Zihan and Xiang, Kun and Nie, Yunshuang and Tang, Tao and Zheng, Xinlong and others},
+  journal={arXiv preprint arXiv:2610.20592},
+  year={2026}
+}
+
 ```
 
 <!-- GeoThinker-F BibTeX: -->
